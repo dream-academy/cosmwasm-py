@@ -93,7 +93,7 @@ else
 endif
 
 install: go.sum
-	go install -mod=readonly $(BUILD_FLAGS) ./cmd/wasmd
+	go install -mod=readonly $(BUILD_FLAGS) ./cmd/libwasmd
 
 libwasmd.a: go.sum
 	go build -o $@ -buildmode=c-archive -mod=readonly $(BUILD_FLAGS) ./cmd/libwasmd
