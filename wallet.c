@@ -7,6 +7,11 @@
     return NULL;\
 } while (0)
 
+#define THROW_RUNTIME_ERROR(s) do {\
+    PyErr_SetString(PyExc_RuntimeError, s);\
+    return NULL;\
+} while (0)
+
 #define TYPECHECK_WALLET(wallet, maybe_wallet) do {\
     if (!PyObject_TypeCheck((maybe_wallet), &cwpyWalletType)) { \
         THROW_TYPE_ERROR("not wallet"); \
@@ -82,7 +87,7 @@ static PyObject *cwpyWalletAddKeyRandom(PyObject *self, PyObject *args) {
     wallet = (cwpyWallet *)self;
     res = addKeyRandom(wallet->walletId, uid);
     if (res.r1 != NULL) {
-        THROW_TYPE_ERROR(res.r1);
+        THROW_RUNTIME_ERROR(res.r1);
     }
     PyObject *rv = PyUnicode_FromString(res.r0);
     Py_INCREF(rv);
@@ -99,7 +104,7 @@ static PyObject *cwpyWalletAddKeyWithMnemonic(PyObject *self, PyObject *args) {
     TYPECHECK_WALLET(wallet, self);
     res = addKeyMnemonic(wallet->walletId, uid, mnemonic);
     if (res != NULL) {
-        THROW_TYPE_ERROR(res);
+        THROW_RUNTIME_ERROR(res);
     }
     return Py_None;
 }
@@ -124,13 +129,64 @@ static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args) {
 }
 
 static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args) {
-    return NULL;
+    const char *uid;
+    const uint8_t *wasmData;
+    Py_ssize_t wasmLen;
+    struct txWasmStore_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "ss#", &uid, &wasmData, &wasmLen)) {
+        THROW_TYPE_ERROR("argument types must be (str, bytes)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = txWasmStore(wallet->walletId, uid, wasmData, wasmLen);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
 }
 
 static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args) {
-    return NULL;
+    const char *uid, *label;
+    const uint8_t *msgData;
+    Py_ssize_t msgLen;
+    uint64_t codeId, umlgFunds;
+    struct txWasmInstatitate_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "skss#k", &uid, &codeId, &label, &msgData, &msgLen, &umlgFunds)) {
+        THROW_TYPE_ERROR("argument types must be (str, int, str, bytes, int)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = txWasmInstatitate(wallet->walletId, uid, codeId, label, msgData, msgLen, umlgFunds);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
 }
 
 static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args) {
-    return NULL;
+    const char *uid, *contract, *msg;
+    uint64_t umlgFunds;
+    struct txWasmExecute_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "sssk", &uid, &contract, &msg, &umlgFunds)) {
+        THROW_TYPE_ERROR("argument types must be (str, str, str, int)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = txWasmExecute(wallet->walletId, uid, contract, msg, umlgFunds);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
 }
