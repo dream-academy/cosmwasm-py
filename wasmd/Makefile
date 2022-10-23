@@ -92,11 +92,9 @@ else
 	go build -mod=readonly $(BUILD_FLAGS) -o build/contract_tests ./cmd/contract_tests
 endif
 
-install: go.sum
-	go install -mod=readonly $(BUILD_FLAGS) ./cmd/libwasmd
+libwasmd: go.sum
+	go build -buildmode=c-archive -o libwasmd.a -mod=readonly $(BUILD_FLAGS) ./cmd/libwasmd
 
-libwasmd.a: go.sum
-	go build -o $@ -buildmode=c-archive -mod=readonly $(BUILD_FLAGS) ./cmd/libwasmd
 
 ########################################
 ### Tools & dependencies

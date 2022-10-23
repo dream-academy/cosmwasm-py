@@ -5,7 +5,7 @@ import "C"
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"unsafe"
 
 	"github.com/CosmWasm/wasmd/app"
 	"github.com/CosmWasm/wasmd/x/wasm/types"
@@ -29,8 +29,8 @@ type Wallet struct {
 	gasStr        string
 }
 
-var wallets map[int]Wallet
-var walletCounter int
+var wallets map[C.int]Wallet
+var walletCounter C.int
 
 func (c *Wallet) initCmdFlags() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("mock", pflag.PanicOnError)
@@ -58,6 +58,9 @@ func (c *Wallet) BroadcastTx(msg sdk.Msg) (string, error) {
 		return "", err
 	}
 	utx, err := tx.BuildUnsignedTx(txf, msg)
+	if err != nil {
+		return "", err
+	}
 	utx.SetFeeGranter(c.clientCtx.GetFeeGranterAddress())
 	err = tx.Sign(txf, c.clientCtx.GetFromName(), utx, true)
 	if err != nil {
@@ -77,11 +80,13 @@ func (c *Wallet) BroadcastTx(msg sdk.Msg) (string, error) {
 }
 
 //export initWallet
-func initWallet(chainId string, nodeUri string) (int, error) {
+func initWallet(_chainId *C.char, _nodeUri *C.char) (C.int, *C.char) {
+	chainId := C.GoString(_chainId)
+	nodeUri := C.GoString(_nodeUri)
 	ctx := NewContext(chainId, nodeUri)
 	client, err := client.NewClientFromNode(nodeUri)
 	if err != nil {
-		return -1, err
+		return -1, C.CString(err.Error())
 	}
 	ctx = ctx.WithClient(client)
 	kb := keyring.NewInMemory()
@@ -99,53 +104,67 @@ func initWallet(chainId string, nodeUri string) (int, error) {
 	}
 	wallets[walletCounter] = w
 	walletCounter += 1
-	return walletCounter - 1, nil
+	return C.int(walletCounter - 1), nil
 }
 
 //export addKeyRandom
-func addKeyRandom(walletId int, uid string) (string, error) {
+func addKeyRandom(walletId C.int, _uid *C.char) (*C.char, *C.char) {
+	uid := C.GoString(_uid)
 	// default to english
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	_, m, err := c.clientCtx.Keyring.NewMnemonic(uid, keyring.Language(1), "m/44'/118'/0'/0/0", "", hd.Secp256k1)
-	return m, err
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	} else {
+		return C.CString(m), nil
+	}
 }
 
 //export addKeyMnemonic
-func addKeyMnemonic(walletId int, uid string, mnemonic string) error {
+func addKeyMnemonic(walletId C.int, _uid *C.char, _mnemonic *C.char) *C.char {
+	uid := C.GoString(_uid)
+	mnemonic := C.GoString(_mnemonic)
 	c, exists := wallets[walletId]
 	if !exists {
-		return errors.New("invalid wallet id")
+		return C.CString("invalid wallet id")
 	}
 	_, err := c.clientCtx.Keyring.NewAccount(uid, mnemonic, "", "m/44'/118'/0'/0/0", hd.Secp256k1)
-	return err
+	if err != nil {
+		return C.CString(err.Error())
+	} else {
+		return nil
+	}
 }
 
 //export getKey
-func getKey(walletId int, uid string) (string, error) {
+func getKey(walletId C.int, _uid *C.char) (*C.char, *C.char) {
+	uid := C.GoString(_uid)
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	info, err := c.clientCtx.Keyring.Key(uid)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	} else {
-		return info.GetAddress().String(), nil
+		return C.CString(info.GetAddress().String()), nil
 	}
 }
 
-// export txWasmStore
-func txWasmStore(walletId int, sender_uid string, wasmBytecode []byte) (string, error) {
+//export txWasmStore
+func txWasmStore(walletId C.int, _sender_uid *C.char, wasmBytecodeData *C.char, wasmBytecodeLen C.int) (*C.char, *C.char) {
+	sender_uid := C.GoString(_sender_uid)
+	wasmBytecode := C.GoBytes(unsafe.Pointer(wasmBytecodeData), wasmBytecodeLen)
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	sender_info, err := c.clientCtx.Keyring.Key(sender_uid)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	}
 	c.clientCtx.FromAddress = sender_info.GetAddress()
 	c.clientCtx.FromName = sender_uid
@@ -155,19 +174,27 @@ func txWasmStore(walletId int, sender_uid string, wasmBytecode []byte) (string, 
 		// for now, we only support AllowEverybody
 		InstantiatePermission: &types.AllowEverybody,
 	}
-	return c.BroadcastTx(&msg)
+	res, err := c.BroadcastTx(&msg)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	} else {
+		return C.CString(res), nil
+	}
 }
 
-// export txWasmInstatitate
-func txWasmInstatitate(walletId int, sender_uid string, codeId uint64, label string, iMsg []byte, fundsUmlg int64) (string, error) {
+//export txWasmInstatitate
+func txWasmInstatitate(walletId C.int, _sender_uid *C.char, codeId uint64, _label *C.char, iMsgData *C.char, iMsgLen C.int, fundsUmlg int64) (*C.char, *C.char) {
+	sender_uid := C.GoString(_sender_uid)
+	label := C.GoString(_label)
+	iMsg := C.GoBytes(unsafe.Pointer(iMsgData), iMsgLen)
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	funds := []sdk.Coin{{Denom: "umlg", Amount: sdk.NewInt(fundsUmlg)}}
 	sender_info, err := c.clientCtx.Keyring.Key(sender_uid)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	}
 	c.clientCtx.FromAddress = sender_info.GetAddress()
 	c.clientCtx.FromName = sender_uid
@@ -180,19 +207,28 @@ func txWasmInstatitate(walletId int, sender_uid string, codeId uint64, label str
 		Msg:    iMsg,
 		Funds:  funds,
 	}
-	return c.BroadcastTx(&msg)
+	res, err := c.BroadcastTx(&msg)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	} else {
+		return C.CString(res), nil
+	}
 }
 
 //export txWasmExecute
-func txWasmExecute(walletId int, sender_uid string, contract string, execMsg string, fundsUmlg int64) (string, error) {
+func txWasmExecute(walletId C.int, _sender_uid *C.char, _contract *C.char, _execMsg *C.char, fundsUmlg int64) (*C.char, *C.char) {
+	sender_uid := C.GoString(_sender_uid)
+	contract := C.GoString(_contract)
+	execMsg := C.GoString(_execMsg)
+
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	funds := []sdk.Coin{{Denom: "umlg", Amount: sdk.NewInt(fundsUmlg)}}
 	sender_info, err := c.clientCtx.Keyring.Key(sender_uid)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	}
 	c.clientCtx.FromAddress = sender_info.GetAddress()
 	c.clientCtx.FromName = sender_uid
@@ -202,25 +238,32 @@ func txWasmExecute(walletId int, sender_uid string, contract string, execMsg str
 		Funds:    funds,
 		Msg:      []byte(execMsg),
 	}
-	return c.BroadcastTx(&msg)
+	res, err := c.BroadcastTx(&msg)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	} else {
+		return C.CString(res), nil
+	}
 }
 
 //export queryContractStateSmart
-func queryContractStateSmart(walletId int, contract string, queryMsg string) (string, error) {
+func queryContractStateSmart(walletId C.int, _contract *C.char, _queryMsg *C.char) (*C.char, *C.char) {
+	contract := C.GoString(_contract)
+	queryMsg := C.GoString(_queryMsg)
 	c, exists := wallets[walletId]
 	if !exists {
-		return "", errors.New("invalid wallet id")
+		return C.CString(""), C.CString("invalid wallet id")
 	}
 	_, err := sdk.AccAddressFromBech32(contract)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	}
 	if queryMsg == "" {
-		return "", errors.New("query data must not be empty")
+		return C.CString(""), C.CString("query data must not be empty")
 	}
 	queryData := []byte(queryMsg)
 	if !json.Valid(queryData) {
-		return "", errors.New("query data must be json")
+		return C.CString(""), C.CString("query data must be json")
 	}
 	queryClient := types.NewQueryClient(c.clientCtx)
 	res, err := queryClient.SmartContractState(
@@ -231,13 +274,15 @@ func queryContractStateSmart(walletId int, contract string, queryMsg string) (st
 		},
 	)
 	if err != nil {
-		return "", err
+		return C.CString(""), C.CString(err.Error())
 	}
-	return res.String(), nil
+	return C.CString(res.String()), nil
 }
 
-//export cfgInit
-func cfgInit() {
+//export libwasmdInit
+func libwasmdInit() {
+	wallets = map[C.int]Wallet{}
+	walletCounter = 0
 	cfg := sdk.GetConfig()
 	cfg.SetBech32PrefixForAccount(app.Bech32PrefixAccAddr, app.Bech32PrefixAccPub)
 	cfg.SetBech32PrefixForValidator(app.Bech32PrefixValAddr, app.Bech32PrefixValPub)

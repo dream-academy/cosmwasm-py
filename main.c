@@ -4,7 +4,6 @@
 #include "wallet.h"
 
 static PyMethodDef cwpyMethods[] = {
-    {"init_wallet",  cwpy_init_wallet, METH_VARARGS, "Initializes a new wallet and returns the wallet object"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -26,8 +25,14 @@ PyInit_cwpy(void)
         return NULL;
     }
 
-    // initialize cfg for wasmd
-    cfgInit();
+    libwasmdInit();
+
+    // initialize type
+    if (PyType_Ready(&cwpyWalletType) < 0) {
+        return NULL;
+    }
+    Py_INCREF(&cwpyWalletType);
+    PyModule_AddObject(m, "wallet", (PyObject *) &cwpyWalletType);
 
     return m;
 }

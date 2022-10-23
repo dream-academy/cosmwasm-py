@@ -49,3 +49,4 @@ contract_tests/*
 
 libwasmd.a
 libwasmd.h
+libwasmvm_muslc.x86_64.a
