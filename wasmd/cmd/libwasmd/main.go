@@ -279,6 +279,60 @@ func queryContractStateSmart(walletId C.int, _contract *C.char, _queryMsg *C.cha
 	return C.CString(res.String()), nil
 }
 
+//export queryContractStateRaw
+func queryContractStateRaw(walletId C.int, _contract *C.char, _queryMsg *C.char) (*C.char, *C.char) {
+	contract := C.GoString(_contract)
+	queryMsg := C.GoString(_queryMsg)
+	c, exists := wallets[walletId]
+	if !exists {
+		return C.CString(""), C.CString("invalid wallet id")
+	}
+	_, err := sdk.AccAddressFromBech32(contract)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	}
+	if queryMsg == "" {
+		return C.CString(""), C.CString("query data must not be empty")
+	}
+	queryData := []byte(queryMsg)
+	queryClient := types.NewQueryClient(c.clientCtx)
+	res, err := queryClient.RawContractState(
+		context.Background(),
+		&types.QueryRawContractStateRequest{
+			Address:   contract,
+			QueryData: queryData,
+		},
+	)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	}
+	return C.CString(res.String()), nil
+}
+
+//export queryContractStateAll
+func queryContractStateAll(walletId C.int, _contract *C.char) (*C.char, *C.char) {
+	contract := C.GoString(_contract)
+	c, exists := wallets[walletId]
+	if !exists {
+		return C.CString(""), C.CString("invalid wallet id")
+	}
+	_, err := sdk.AccAddressFromBech32(contract)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	}
+	queryClient := types.NewQueryClient(c.clientCtx)
+	res, err := queryClient.AllContractState(
+		context.Background(),
+		&types.QueryAllContractStateRequest{
+			Address: contract,
+		},
+	)
+	if err != nil {
+		return C.CString(""), C.CString(err.Error())
+	}
+	return C.CString(res.String()), nil
+}
+
 //export libwasmdInit
 func libwasmdInit() {
 	wallets = map[C.int]Wallet{}

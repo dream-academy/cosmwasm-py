@@ -30,7 +30,9 @@ static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args);
-static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args);
+static PyObject* cwpyWalletQueryContractStateSmart(PyObject* self, PyObject* args);
+static PyObject* cwpyWalletQueryContractStateRaw(PyObject *self, PyObject *args);
+static PyObject* cwpyWalletQueryContractStateAll(PyObject *self, PyObject *args);
 
 static PyMethodDef cwpyWalletMethods[] = {
     {"add_key_random", cwpyWalletAddKeyRandom, METH_VARARGS, ""},
@@ -39,7 +41,9 @@ static PyMethodDef cwpyWalletMethods[] = {
     {"tx_wasm_store", cwpyWalletTxWasmStore, METH_VARARGS, ""},
     {"tx_wasm_instantiate", cwpyWalletTxWasmInstantiate, METH_VARARGS, ""},
     {"tx_wasm_execute", cwpyWalletTxWasmExecute, METH_VARARGS, ""},
-    {"query_contract_smart", cwpyWalletQueryContractSmart, METH_VARARGS, ""},
+    {"query_contract_state_smart", cwpyWalletQueryContractStateSmart, METH_VARARGS, ""},
+    {"query_contract_state_raw", cwpyWalletQueryContractStateRaw, METH_VARARGS, ""},
+    {"query_contract_state_all", cwpyWalletQueryContractStateAll, METH_VARARGS, ""},
     { NULL, NULL, 0, NULL }
 };
 
@@ -196,7 +200,7 @@ static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args) {
     }
 }
 
-static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args) {
+static PyObject* cwpyWalletQueryContractStateSmart(PyObject* self, PyObject* args) {
     char *contract, *msg;
     struct queryContractStateSmart_return res;
     cwpyWallet *wallet;
@@ -205,6 +209,46 @@ static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args) {
     }
     TYPECHECK_WALLET(wallet, self);
     res = queryContractStateSmart(wallet->walletId, contract, msg);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
+}
+
+static PyObject* cwpyWalletQueryContractStateRaw(PyObject *self, PyObject *args) {
+    char *contract, *msg;
+    struct queryContractStateRaw_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "ss", &contract, &msg)) {
+        THROW_TYPE_ERROR("argument types must be (str, str)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = queryContractStateRaw(wallet->walletId, contract, msg);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
+}
+
+static PyObject* cwpyWalletQueryContractStateAll(PyObject *self, PyObject *args) {
+    char *contract;
+    struct queryContractStateAll_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "s", &contract)) {
+        THROW_TYPE_ERROR("argument types must be (str)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = queryContractStateAll(wallet->walletId, contract);
     if (res.r1 != NULL) {
         THROW_RUNTIME_ERROR(res.r1);
     }

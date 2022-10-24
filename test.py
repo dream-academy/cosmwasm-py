@@ -50,5 +50,9 @@ if __name__ == "__main__":
     contract_addr = "wasm14k3zruqx7atjwzatga965dpyquksq2hy0ykfu6nq3g2fzqpv6pnsl3a9te"
     #execute(contract_addr)
     query_msg = json.dumps({"get_number": {"address": addr}})
-    res = w.query_contract_smart(contract_addr, query_msg)
+    res = w.query_contract_state_smart(contract_addr, query_msg)
+    print(res)
+
+    query_msg = "0"
+    res = w.query_contract_state_all(contract_addr)
     print(res)
