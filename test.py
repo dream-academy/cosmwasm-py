@@ -48,4 +48,7 @@ if __name__ == "__main__":
     #store()
     #contract_addr = instantiate(1744)
     contract_addr = "wasm14k3zruqx7atjwzatga965dpyquksq2hy0ykfu6nq3g2fzqpv6pnsl3a9te"
-    execute(contract_addr)
+    #execute(contract_addr)
+    query_msg = json.dumps({"get_number": {"address": addr}})
+    res = w.query_contract_smart(contract_addr, query_msg)
+    print(res)

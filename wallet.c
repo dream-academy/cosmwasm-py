@@ -30,6 +30,7 @@ static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args);
 static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args);
+static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args);
 
 static PyMethodDef cwpyWalletMethods[] = {
     {"add_key_random", cwpyWalletAddKeyRandom, METH_VARARGS, ""},
@@ -38,6 +39,7 @@ static PyMethodDef cwpyWalletMethods[] = {
     {"tx_wasm_store", cwpyWalletTxWasmStore, METH_VARARGS, ""},
     {"tx_wasm_instantiate", cwpyWalletTxWasmInstantiate, METH_VARARGS, ""},
     {"tx_wasm_execute", cwpyWalletTxWasmExecute, METH_VARARGS, ""},
+    {"query_contract_smart", cwpyWalletQueryContractSmart, METH_VARARGS, ""},
     { NULL, NULL, 0, NULL }
 };
 
@@ -123,6 +125,7 @@ static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args) {
     }
     else {
         PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
         Py_INCREF(rv);
         return rv;
     }
@@ -144,6 +147,7 @@ static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args) {
     }
     else {
         PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
         Py_INCREF(rv);
         return rv;
     }
@@ -166,6 +170,7 @@ static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args) {
     }
     else {
         PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
         Py_INCREF(rv);
         return rv;
     }
@@ -186,6 +191,27 @@ static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args) {
     }
     else {
         PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
+        Py_INCREF(rv);
+        return rv;
+    }
+}
+
+static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args) {
+    const char *contract, *msg;
+    struct queryContractStateSmart_return res;
+    cwpyWallet *wallet;
+    if (!PyArg_ParseTuple(args, "ss", &contract, &msg)) {
+        THROW_TYPE_ERROR("argument types must be (str, str)");
+    }
+    TYPECHECK_WALLET(wallet, self);
+    res = queryContractStateSmart(wallet->walletId, contract, msg);
+    if (res.r1 != NULL) {
+        THROW_RUNTIME_ERROR(res.r1);
+    }
+    else {
+        PyObject *rv = PyUnicode_FromString(res.r0);
+        free(res.r0);
         Py_INCREF(rv);
         return rv;
     }
