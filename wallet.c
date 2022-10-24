@@ -44,11 +44,11 @@ static PyMethodDef cwpyWalletMethods[] = {
 };
 
 static PyObject *cwpyWalletNew(PyTypeObject *subtype, PyObject *args, PyObject *kwds) {
-    const char *chainId, *nodeUri;
+    char *chainId, *nodeUri;
     if (!PyArg_ParseTuple(args, "ss", &chainId, &nodeUri)) {
         THROW_TYPE_ERROR("argument types must be (str, str)");
     }
-    cwpyWallet *self = subtype->tp_alloc(subtype, 0);
+    cwpyWallet *self = (cwpyWallet *)subtype->tp_alloc(subtype, 0);
     if (self) {
         struct initWallet_return rv = initWallet(chainId, nodeUri);
         if (rv.r1 != NULL) {
@@ -57,7 +57,8 @@ static PyObject *cwpyWalletNew(PyTypeObject *subtype, PyObject *args, PyObject *
         }
         self->walletId = rv.r0;
     }
-    return self;
+    Py_INCREF(self);
+    return (PyObject *)self;
 }
 
 static int cwpyWalletInit(PyObject *self, PyObject *args, PyObject *kwds) {
@@ -77,7 +78,7 @@ PyTypeObject cwpyWalletType = {
 };
 
 static PyObject *cwpyWalletAddKeyRandom(PyObject *self, PyObject *args) {
-    const char *uid, *mnemonic;
+    char *uid;
     cwpyWallet *wallet;
     struct addKeyRandom_return res;
     if (!PyArg_ParseTuple(args, "s", &uid)) {
@@ -97,7 +98,7 @@ static PyObject *cwpyWalletAddKeyRandom(PyObject *self, PyObject *args) {
 }
 
 static PyObject *cwpyWalletAddKeyWithMnemonic(PyObject *self, PyObject *args) {
-    const char *uid, *mnemonic;
+    char *uid, *mnemonic;
     char *res;
     cwpyWallet *wallet;
     if (!PyArg_ParseTuple(args, "ss", &uid, &mnemonic)) {
@@ -112,7 +113,7 @@ static PyObject *cwpyWalletAddKeyWithMnemonic(PyObject *self, PyObject *args) {
 }
 
 static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args) {
-    const char *uid;
+    char *uid;
     struct getKey_return res;
     cwpyWallet *wallet;
     if (!PyArg_ParseTuple(args, "s", &uid)) {
@@ -132,8 +133,7 @@ static PyObject* cwpyWalletGetKey(PyObject* self, PyObject* args) {
 }
 
 static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args) {
-    const char *uid;
-    const uint8_t *wasmData;
+    char *uid, *wasmData;
     Py_ssize_t wasmLen;
     struct txWasmStore_return res;
     cwpyWallet *wallet;
@@ -154,8 +154,7 @@ static PyObject* cwpyWalletTxWasmStore(PyObject* self, PyObject* args) {
 }
 
 static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args) {
-    const char *uid, *label;
-    const uint8_t *msgData;
+    char *uid, *label, *msgData;
     Py_ssize_t msgLen;
     uint64_t codeId, umlgFunds;
     struct txWasmInstatitate_return res;
@@ -177,7 +176,7 @@ static PyObject* cwpyWalletTxWasmInstantiate(PyObject* self, PyObject* args) {
 }
 
 static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args) {
-    const char *uid, *contract, *msg;
+    char *uid, *contract, *msg;
     uint64_t umlgFunds;
     struct txWasmExecute_return res;
     cwpyWallet *wallet;
@@ -198,7 +197,7 @@ static PyObject* cwpyWalletTxWasmExecute(PyObject* self, PyObject* args) {
 }
 
 static PyObject* cwpyWalletQueryContractSmart(PyObject* self, PyObject* args) {
-    const char *contract, *msg;
+    char *contract, *msg;
     struct queryContractStateSmart_return res;
     cwpyWallet *wallet;
     if (!PyArg_ParseTuple(args, "ss", &contract, &msg)) {
